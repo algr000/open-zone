@@ -10,7 +10,7 @@ import (
 
 func TestEngine_ConnectBundle(t *testing.T) {
 	e := NewEngine(EngineConfig{Port: 2300}, nil, nil)
-	outs := e.Handle(time.Unix(1700000000, 0).UTC(), 0, Msg{
+	outs := e.Handle(time.Unix(1700000000, 0).UTC(), 0, "", Msg{
 		Tag:   "Connect",
 		Attrs: map[string]string{"Cx": "0x123", "ProtoVer": "3.3"},
 	})
@@ -27,7 +27,7 @@ func TestEngine_ConnectBundle(t *testing.T) {
 
 func TestEngine_HdrRow_Vid101(t *testing.T) {
 	e := NewEngine(EngineConfig{Port: 2300}, nil, nil)
-	outs := e.Handle(time.Now().UTC(), 0, Msg{
+	outs := e.Handle(time.Now().UTC(), 0, "", Msg{
 		Tag:   "HdrRow",
 		Attrs: map[string]string{"Cx": "0x65", "Vid": "101"},
 	})
@@ -52,7 +52,7 @@ func TestEngine_Page_OneRowFromHostStore(t *testing.T) {
 	e := NewEngine(EngineConfig{Port: 2300}, host, nil)
 
 	// Seed host state via HostData so the page contains a real row.
-	e.Handle(time.Now().UTC(), 0xabcdef01, Msg{
+	e.Handle(time.Now().UTC(), 0xabcdef01, "", Msg{
 		Tag: "HostData",
 		Attrs: map[string]string{
 			"Cx": "0x0",
@@ -62,7 +62,7 @@ func TestEngine_Page_OneRowFromHostStore(t *testing.T) {
 			`</New></HostData></HostData>`,
 	})
 
-	outs := e.Handle(time.Now().UTC(), 0, Msg{
+	outs := e.Handle(time.Now().UTC(), 0, "", Msg{
 		Tag: "Page",
 		Attrs: map[string]string{
 			"Cx":     "0x0",

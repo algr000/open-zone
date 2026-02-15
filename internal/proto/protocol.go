@@ -21,7 +21,7 @@ type EngineConfig struct {
 }
 
 type Engine struct {
-	port int
+	port        int
 
 	host    *state.HostStore
 	players *state.PlayerStore
@@ -51,7 +51,7 @@ func (p *Engine) Stats() Stats {
 	return out
 }
 
-func (p *Engine) Handle(now time.Time, fromDPNID uint32, in Msg) []Outbound {
+func (p *Engine) Handle(now time.Time, fromDPNID uint32, remoteIP string, in Msg) []Outbound {
 	switch in.Tag {
 	case "Connect":
 		return p.handleConnect(now, in)
@@ -62,9 +62,9 @@ func (p *Engine) Handle(now time.Time, fromDPNID uint32, in Msg) []Outbound {
 	case "RowPg":
 		return p.handleRowPg(in)
 	case "HostData":
-		return p.handleHostData(fromDPNID, in)
+		return p.handleHostData(fromDPNID, remoteIP, in)
 	case "SetLoc":
-		return p.handleSetLoc(fromDPNID, in)
+		return p.handleSetLoc(fromDPNID, remoteIP, in)
 	default:
 		return p.handleFallback(in)
 	}
@@ -159,9 +159,12 @@ func (p *Engine) handleConnect(now time.Time, in Msg) []Outbound {
 	}
 }
 
-func (p *Engine) handleSetLoc(fromDPNID uint32, in Msg) []Outbound {
+func (p *Engine) handleSetLoc(fromDPNID uint32, remoteIP string, in Msg) []Outbound {
 	// Hosting flow emits `<SetLoc ... Location="STAGING AREA=..."/>` prior to HostData.
 	if p.host != nil {
+		if strings.TrimSpace(remoteIP) != "" {
+			p.host.SetObservedRemoteIP(fromDPNID, remoteIP)
+		}
 		p.host.SetLoc(fromDPNID, in.Attrs["Location"])
 	}
 
@@ -175,10 +178,13 @@ func (p *Engine) handleSetLoc(fromDPNID uint32, in Msg) []Outbound {
 	return []Outbound{{Tag: "SetLocRes", PayloadXML: out, Exp: "send-host"}}
 }
 
-func (p *Engine) handleHostData(fromDPNID uint32, in Msg) []Outbound {
+func (p *Engine) handleHostData(fromDPNID uint32, remoteIP string, in Msg) []Outbound {
 	// `<HostData ...>` carries nested `<Item .../>` elements describing a session (ItemId="0")
 	// and players (other ItemId values).
 	if p.host != nil {
+		if strings.TrimSpace(remoteIP) != "" {
+			p.host.SetObservedRemoteIP(fromDPNID, remoteIP)
+		}
 		p.host.ApplyHostData(fromDPNID, in.Raw)
 	}
 

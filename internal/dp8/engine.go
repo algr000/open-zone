@@ -593,7 +593,10 @@ func (e *Engine) handleEvent(evt dp8shim.Event, payload []byte) error {
 			// NDJSON (optional) keeps full attribute details for debugging.
 			rec.Message = fmt.Sprintf("%s attrs=%v", rec.Message, msg.Attrs)
 
-			outs := e.proto.Handle(time.Now().UTC(), evt.DPNID, msg)
+			e.mu.RLock()
+			rs := e.clientRemote[evt.DPNID]
+			e.mu.RUnlock()
+			outs := e.proto.Handle(time.Now().UTC(), evt.DPNID, rs.ip, msg)
 			for _, out := range outs {
 				switch out.Exp {
 				case "send-fallback":

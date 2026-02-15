@@ -36,6 +36,10 @@ type hostSession struct {
 	// Free-form location string set by SetLoc.
 	location string
 
+	// observedRemoteIP is the best-effort remote/public IP as seen by the server.
+	// This is preferred over client-published interface IPs for internet join.
+	observedRemoteIP string
+
 	// SERVER_ITEM_ID == 0: game/session metadata.
 	server map[string]string
 
@@ -74,6 +78,18 @@ func (s *HostStore) SetLoc(from uint32, location string) {
 	defer s.mu.Unlock()
 	h := s.getOrCreateLocked(from)
 	h.location = location
+	h.lastUpdate = time.Now().UTC()
+}
+
+func (s *HostStore) SetObservedRemoteIP(from uint32, ip string) {
+	ip = strings.TrimSpace(ip)
+	if ip == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	h := s.getOrCreateLocked(from)
+	h.observedRemoteIP = ip
 	h.lastUpdate = time.Now().UTC()
 }
 
@@ -136,22 +152,83 @@ func (s *HostStore) ApplyHostData(from uint32, payload string) {
 }
 
 // parseHostIpList splits the host-provided IP list into (primary, secondary).
+//
+// The on-wire format seen in practice is space-separated, but we also tolerate commas
+// because some parts of the protocol use comma-separated lists for other fields.
 func parseHostIpList(raw string) (ipAddr string, ip2 string) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return "", ""
 	}
-	ips := strings.Fields(raw)
+	ips := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\r' || r == '\n'
+	})
 	if len(ips) == 0 {
 		return "", ""
 	}
 	ipAddr = ips[0]
-	if len(ips) > 1 {
-		ip2 = ips[1]
-	} else {
-		ip2 = ips[0]
+	ip2 = ips[0]
+	for i := 1; i < len(ips); i++ {
+		if ips[i] != "" && ips[i] != ipAddr {
+			ip2 = ips[i]
+			break
+		}
 	}
 	return ipAddr, ip2
+}
+
+func hostAdvertisedIPs(server map[string]string) (ipAddr, ip2 string) {
+	// Prefer explicit fields if present.
+	ipAddr = strings.TrimSpace(server["IpAddr"])
+	raw2 := strings.TrimSpace(server["Ip2"])
+	if raw2 == "" && ipAddr == "" {
+		return "", ""
+	}
+
+	// "Ip2" is sometimes a space-separated list of IPs. If IpAddr is absent, treat
+	// the first IP as primary. If IpAddr is present, treat Ip2 as a secondary hint.
+	p, s := parseHostIpList(raw2)
+	switch {
+	case ipAddr == "" && p != "":
+		ipAddr = p
+		ip2 = s
+	case ipAddr != "" && raw2 != "":
+		// Keep the first distinct secondary IP when possible.
+		if s != "" && s != ipAddr {
+			ip2 = s
+		} else if p != "" && p != ipAddr {
+			ip2 = p
+		} else {
+			ip2 = ipAddr
+		}
+	case ipAddr != "":
+		ip2 = ipAddr
+	}
+	return ipAddr, ip2
+}
+
+func hostBrowseIPs(h *hostSession) (ipAddr, ip2 string) {
+	if h == nil {
+		return "", ""
+	}
+	adv1, adv2 := hostAdvertisedIPs(h.server)
+
+	// Prefer observed remote IP for the primary.
+	if strings.TrimSpace(h.observedRemoteIP) != "" {
+		ipAddr = h.observedRemoteIP
+		// Keep the client-advertised secondary IP if it exists and differs; otherwise mirror.
+		if adv1 != "" && adv1 != ipAddr {
+			ip2 = adv1
+		} else if adv2 != "" && adv2 != ipAddr {
+			ip2 = adv2
+		} else {
+			ip2 = ipAddr
+		}
+		return ipAddr, ip2
+	}
+
+	// Fallback: use client-advertised IPs.
+	return adv1, adv2
 }
 
 func (s *HostStore) VisibleGamesCount() int {
@@ -211,7 +288,7 @@ func (s *HostStore) GamesRows(maxRows int, headers []string) []GameRow {
 		copyIfNonEmpty(items, "GName", h.server["GName"])
 		copyIfNonEmpty(items, "GameV", h.server["GameV"])
 		copyIfNonEmpty(items, "Locale", h.server["Locale"])
-		if ipAddr, ip2 := parseHostIpList(h.server["Ip2"]); ipAddr != "" {
+		if ipAddr, ip2 := hostBrowseIPs(h); ipAddr != "" {
 			items["IpAddr"] = ipAddr
 			items["Ip2"] = ip2
 		}
@@ -250,7 +327,7 @@ func (s *HostStore) RowByRid(rid string, headers []string) (GameRow, bool) {
 		copyIfNonEmpty(items, "GName", h.server["GName"])
 		copyIfNonEmpty(items, "GameV", h.server["GameV"])
 		copyIfNonEmpty(items, "Locale", h.server["Locale"])
-		if ipAddr, ip2 := parseHostIpList(h.server["Ip2"]); ipAddr != "" {
+		if ipAddr, ip2 := hostBrowseIPs(h); ipAddr != "" {
 			items["IpAddr"] = ipAddr
 			items["Ip2"] = ip2
 		}
