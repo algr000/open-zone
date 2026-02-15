@@ -1,0 +1,18 @@
+{{- if .Tagline -}}
+{{ .Tagline }}
+{{- else -}}
+The official OpenZone server - enjoy :)
+{{- end }}
+
+Players online: {{ .PlayersOnline }}
+Games hosted: {{ .GamesHosted }}
+
+{{- if .CreatedBy }}
+Created by: {{ .CreatedBy }}
+{{- end }}
+Version: {{ .Version }}
+Server time on last cache: {{ .ServerTime }}
+
+{{- if .Message }}
+{{ .Message }}
+{{- end }}

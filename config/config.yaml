@@ -1,0 +1,22 @@
+dp8:
+  port: 2300
+news:
+  port: 2301
+autoupdate:
+  # Accept-and-close sink for AutoUpdate probes.
+  # If port 80 is already in use, open-zone will log and continue without it.
+  port: 80
+
+shim:
+  path: "bin\\dp8shim.dll"
+
+server:
+  created_by: "algr_"
+  version: "0.1.0"
+  tagline: "The official OpenZone server - enjoy :)"
+
+telemetry:
+  # Path to write NDJSON telemetry.
+  # - If empty, file logging is disabled (console logs still happen).
+  # - To enable, set a filepath like: "logs\\dp8.ndjson"
+  dp8_ndjson_path: ""

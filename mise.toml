@@ -1,0 +1,37 @@
+[tools]
+go = "1.26.0"
+python = "3.12.8"
+
+[tasks.run]
+description = "Run the server"
+run = "go run ./cmd/open-zone"
+
+[tasks.setup-tools]
+description = "Install Go-based dev tools (air, goimports)"
+run = [
+  "go install github.com/air-verse/air@latest",
+  "go install golang.org/x/tools/cmd/goimports@latest",
+]
+
+[tasks.dev]
+description = "Run with hot reload (requires air)"
+run = "air"
+
+[tasks.test]
+description = "Run unit tests"
+run = "go test ./..."
+
+[tasks.fmt]
+description = "Format Go code"
+run = "gofmt -w ./"
+
+[tasks.lint]
+description = "Run golangci-lint"
+# golangci-lint's prebuilt binaries may be built with an older Go toolchain,
+# which can fail on newer `go` directives. Running via `go run` ensures the
+# tool is built with the active Go version.
+run = "go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.63.4 run ./..."
+
+[tasks.build-shim]
+description = "Build dp8shim.dll (Windows)"
+run = 'pwsh -NoProfile -ExecutionPolicy Bypass -File dp8shim/build.ps1'

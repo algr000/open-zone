@@ -1,0 +1,17 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/open-zone.exe ./cmd/open-zone"
+bin = "tmp\\open-zone.exe"
+full_bin = "tmp\\open-zone.exe"
+include_ext = ["go", "json", "txt"]
+exclude_dir = ["tmp", "vendor", ".git", "docs", "dp8shim", "tools"]
+delay = 300
+stop_on_error = true
+send_interrupt = true
+kill_delay = 200
+
+[log]
+time = true
+

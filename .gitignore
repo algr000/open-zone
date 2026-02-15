@@ -1,0 +1,35 @@
+# --- OS / editor ---
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# --- Go ---
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# --- Local logs ---
+**/logs/
+*.log
+*.ndjson
+*.pcap
+*.pcapng
+*.bin
+
+# --- dp8shim build artifacts ---
+dp8shim/*.obj
+dp8shim/*.lib
+dp8shim/*.exp
+dp8shim/tmp/
+
+# --- dp8shim SDK headers ---
+dp8shim/include/
+
+tools/
+tmp/
+
+build-errors.log
