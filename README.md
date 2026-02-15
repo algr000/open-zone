@@ -145,6 +145,8 @@ Useful knobs:
 - `shim.path` (default `bin\\dp8shim.dll`)
 - `telemetry.dp8_ndjson_path` (empty disables NDJSON file logging)
 
+**Remote hosting:** Set `dp8.advertise_ip` and `dp8.advertise_port` to the public hostname/IP and port clients should use to reach this server (e.g. your VM’s public IP and 2300). Leave empty/0 for local-only (defaults to `127.0.0.1:<dp8.port>`). This affects the `ConInfoRes` reply sent to connecting clients.
+
 ## Logs
 
 - Console logging: always on
@@ -165,6 +167,37 @@ Useful knobs:
 - `bin/`: runtime binaries (see `bin/README.md`)
 - `docs/`: protocol/design docs
 
+## Building a deploy bundle
+
+`mise run deploy-build` produces a portable Windows x64 bundle under `./deploy/` that you can copy to another machine.
+
+**What it does:**
+
+1. **Fresh output directory**  
+   Removes any existing `deploy/` and recreates `deploy/`, `deploy/bin`, and `deploy/config`.
+
+2. **Shim**  
+   Runs the same shim build as `mise run build-shim`. If `dp8shim.dll` is in use (e.g. server running), the build is skipped and the existing DLL is used for staging.
+
+3. **Server binary**  
+   Builds the Go server for Windows x64:
+   - `GOOS=windows`, `GOARCH=amd64`, `CGO_ENABLED=0`
+   - `go build -trimpath -ldflags "-s -w"` → `deploy/open-zone.exe`
+
+4. **Staged artifacts**  
+   Copies into `deploy/`:
+   - `bin/dp8shim.dll` (and `bin/dp8shim.pdb` if present) → `deploy/bin/`
+   - `config/config.yaml` → `deploy/config/`
+   - `README.md`, `run-server.bat`, and `docs/` → `deploy/`
+
+**Usage:**
+
+```powershell
+mise run deploy-build
+```
+
+The resulting `deploy/` folder can be run on any Windows x64 machine; run `open-zone.exe` from the `deploy` directory (it expects `bin/dp8shim.dll` and `config/config.yaml` relative to the current directory).
+
 ## Dev (Format/Lint)
 
 With `mise`:
@@ -184,6 +217,30 @@ go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.63.4 run ./...
 ```
 
 ## Troubleshooting
+
+- **`DP8_StartServer failed hr=0x80070005` (E_ACCESS_DENIED) when running remotely (e.g. on a VM)**  
+  The DirectPlay8 stack is being blocked from binding to the DP8 port (default 2300). Fix both:  
+  1. **VM / cloud firewall** – In the cloud console (AWS security group, Azure NSG, GCP firewall, etc.), allow **inbound TCP 80, UDP 2300, and TCP 2301** (HTTP News) to the VM.  
+  2. **Windows Firewall on the VM** – Add inbound rules. In PowerShell (run as Administrator):  
+     `New-NetFirewallRule -DisplayName "open-zone DP8" -Direction Inbound -Protocol UDP -LocalPort 2300 -Action Allow`  
+     `New-NetFirewallRule -DisplayName "open-zone News" -Direction Inbound -Protocol TCP -LocalPort 2301 -Action Allow`  
+     `New-NetFirewallRule -DisplayName "open-zone AutoUpdate" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow`  
+  - Ensure the process runs under an account that can open listening sockets (usually any normal user can).
+
+- **Running on remote servers (VM / Windows Server)**  
+  DirectPlay is not enabled by default. On the server, run in an elevated command prompt, then reboot:
+
+  ```
+  dism /online /enable-feature /featurename:LegacyComponents /all /norestart
+  dism /online /enable-feature /featurename:DirectPlay /all /norestart
+  shutdown /r /t 0
+  ```
+
+- **Join times out when a player hosts a game**  
+  open-zone is the ZoneMatch lobby server; joining a game connects **directly** to the host’s machine via DirectPlay. If the host is behind NAT, the joiner cannot reach them unless the host’s router forwards the game session ports to the host:
+  - **6073 UDP** – primary (inbound for hosting, outbound for joining)
+  - **2302–2400 UDP** – secondary
+  ZoneMatch (2300 UDP) is only for the lobby. Without port forwarding on the host’s NAT, join will time out even when the Games list shows the correct host IP.
 
 - `dp8shim` fails to load
   - Ensure `bin/dp8shim.dll` exists (run `dp8shim/build.ps1`)

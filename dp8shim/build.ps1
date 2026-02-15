@@ -70,7 +70,8 @@ try {
     $cmd = @(
       "call `"$vcvars64`" >nul",
       "cd /d `"$here`"",
-      "cl /nologo /EHsc /LD dp8shim.cpp /I `"$includeDir`" /Fo`"$tmpDir\\dp8shim.obj`" /Fd`"$tmpDir\\dp8shim.pdb`" /link /OUT:`"$binDir\\dp8shim.dll`" /PDB:`"$binDir\\dp8shim.pdb`" ole32.lib uuid.lib"
+      # /MT to statically link the MSVC runtime for portability (avoid VC++ redist dependency).
+      "cl /nologo /EHsc /MT /LD dp8shim.cpp /I `"$includeDir`" /Fo`"$tmpDir\\dp8shim.obj`" /Fd`"$tmpDir\\dp8shim.pdb`" /link /OUT:`"$binDir\\dp8shim.dll`" /PDB:`"$binDir\\dp8shim.pdb`" ole32.lib uuid.lib"
     ) -join " && "
 
     & cmd.exe /c $cmd
@@ -78,7 +79,7 @@ try {
   } else {
     Push-Location $here
     try {
-      & cl.exe /nologo /EHsc /LD dp8shim.cpp /I $includeDir /Fo"$tmpDir\\dp8shim.obj" /Fd"$tmpDir\\dp8shim.pdb" /link /OUT:"$binDir\\dp8shim.dll" /PDB:"$binDir\\dp8shim.pdb" ole32.lib uuid.lib
+      & cl.exe /nologo /EHsc /MT /LD dp8shim.cpp /I $includeDir /Fo"$tmpDir\\dp8shim.obj" /Fd"$tmpDir\\dp8shim.pdb" /link /OUT:"$binDir\\dp8shim.dll" /PDB:"$binDir\\dp8shim.pdb" ole32.lib uuid.lib
       if ($LASTEXITCODE -ne 0) { throw "Build failed (exit=$LASTEXITCODE)" }
     } finally {
       Pop-Location

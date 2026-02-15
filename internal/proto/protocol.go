@@ -18,10 +18,19 @@ type Outbound struct {
 
 type EngineConfig struct {
 	Port int
+
+	// AdvertiseIP/AdvertisePort are reported in ConInfoRes. These should point at the
+	// address clients must use to reach this DP8 server (e.g. public IP, tunnel endpoint).
+	//
+	// If unset, ConInfoRes defaults to IpAddr=127.0.0.1 and Port=<Port>.
+	AdvertiseIP   string
+	AdvertisePort int
 }
 
 type Engine struct {
 	port        int
+	advertiseIP string
+	advPort     int
 
 	host    *state.HostStore
 	players *state.PlayerStore
@@ -33,10 +42,20 @@ type Stats struct {
 }
 
 func NewEngine(cfg EngineConfig, host *state.HostStore, players *state.PlayerStore) *Engine {
+	advIP := strings.TrimSpace(cfg.AdvertiseIP)
+	advPort := cfg.AdvertisePort
+	if advPort <= 0 {
+		advPort = cfg.Port
+	}
+	if advIP == "" {
+		advIP = "127.0.0.1"
+	}
 	return &Engine{
-		port:    cfg.Port,
-		host:    host,
-		players: players,
+		port:        cfg.Port,
+		advertiseIP: advIP,
+		advPort:     advPort,
+		host:        host,
+		players:     players,
 	}
 }
 
@@ -149,7 +168,7 @@ func (p *Engine) handleConnect(now time.Time, in Msg) []Outbound {
 		`<ConnectRes HR="0x00000000" Cx="%s" ProtoVer="%s" SIId="0x%08x" LId="0x%08x" ConSId="0x%08x" ConLId="0x%08x" Time="%d" Locale="%s" Random="0x%08x" AppGuid="%s" />`,
 		cx, pv, siid, lid, siid, lid, t2000, locale, randv, appGuid,
 	)
-	msg2 := fmt.Sprintf(`<ConInfoRes HR="0x00000000" Cx="%s" IpAddr="127.0.0.1" Port="%d" />`, cx, p.port)
+	msg2 := fmt.Sprintf(`<ConInfoRes HR="0x00000000" Cx="%s" IpAddr="%s" Port="%d" />`, cx, xmlEscapeAttr(p.advertiseIP), p.advPort)
 	msg3 := fmt.Sprintf(`<ConnectEv HR="0x00000000" Cx="%s" Time="%d" />`, cx, t2000)
 
 	return []Outbound{

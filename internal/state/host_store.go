@@ -1,6 +1,7 @@
 package state
 
 import (
+	"net"
 	"sort"
 	"strconv"
 	"strings"
@@ -207,19 +208,29 @@ func hostAdvertisedIPs(server map[string]string) (ipAddr, ip2 string) {
 	return ipAddr, ip2
 }
 
+// isPrivateIP returns true for loopback and RFC 1918 private addresses.
+// Used so we never expose a private IP in browse rows when the host is reachable via a public observed IP.
+func isPrivateIP(s string) bool {
+	ip := net.ParseIP(strings.TrimSpace(s))
+	if ip == nil {
+		return true // treat unparseable as private to avoid leaking
+	}
+	return ip.IsLoopback() || ip.IsPrivate()
+}
+
 func hostBrowseIPs(h *hostSession) (ipAddr, ip2 string) {
 	if h == nil {
 		return "", ""
 	}
 	adv1, adv2 := hostAdvertisedIPs(h.server)
 
-	// Prefer observed remote IP for the primary.
+	// Prefer observed remote IP for the primary (server-seen address; works across NAT).
 	if strings.TrimSpace(h.observedRemoteIP) != "" {
 		ipAddr = h.observedRemoteIP
-		// Keep the client-advertised secondary IP if it exists and differs; otherwise mirror.
-		if adv1 != "" && adv1 != ipAddr {
+		// Use client-advertised secondary only if it is a public IP; otherwise other players would try to join a private IP and timeout.
+		if adv1 != "" && adv1 != ipAddr && !isPrivateIP(adv1) {
 			ip2 = adv1
-		} else if adv2 != "" && adv2 != ipAddr {
+		} else if adv2 != "" && adv2 != ipAddr && !isPrivateIP(adv2) {
 			ip2 = adv2
 		} else {
 			ip2 = ipAddr
@@ -227,7 +238,7 @@ func hostBrowseIPs(h *hostSession) (ipAddr, ip2 string) {
 		return ipAddr, ip2
 	}
 
-	// Fallback: use client-advertised IPs.
+	// Fallback: use client-advertised IPs (e.g. same LAN).
 	return adv1, adv2
 }
 

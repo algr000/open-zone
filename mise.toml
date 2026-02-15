@@ -35,3 +35,7 @@ run = "go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.63.4 run ./
 [tasks.build-shim]
 description = "Build dp8shim.dll (Windows)"
 run = 'pwsh -NoProfile -ExecutionPolicy Bypass -File dp8shim/build.ps1'
+
+[tasks.deploy-build]
+description = "Build a portable Windows x64 deploy bundle under ./deploy/"
+run = "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-build.ps1"

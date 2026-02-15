@@ -48,6 +48,8 @@ func Load() (Config, error) {
 
 	// Defaults (match current known-good behavior).
 	v.SetDefault("dp8.port", 2300)
+	v.SetDefault("dp8.advertise_ip", "")
+	v.SetDefault("dp8.advertise_port", 0)
 	v.SetDefault("news.port", 2301)
 	v.SetDefault("autoupdate.port", 80)
 	v.SetDefault("shim.path", "bin\\dp8shim.dll")
@@ -71,12 +73,17 @@ func Load() (Config, error) {
 		ShimPath:        v.GetString("shim.path"),
 		DP8LogPath:      v.GetString("telemetry.dp8_ndjson_path"),
 		Proto: proto.EngineConfig{
-			Port: 0, // set below
+			Port:          0, // set below
+			AdvertiseIP:   strings.TrimSpace(v.GetString("dp8.advertise_ip")),
+			AdvertisePort: v.GetInt("dp8.advertise_port"),
 		},
 	}
 
 	if cfg.DP8Port <= 0 || cfg.DP8Port > 65535 {
 		return Config{}, fmt.Errorf("invalid dp8.port %d", cfg.DP8Port)
+	}
+	if cfg.Proto.AdvertisePort < 0 || cfg.Proto.AdvertisePort > 65535 {
+		return Config{}, fmt.Errorf("invalid dp8.advertise_port %d", cfg.Proto.AdvertisePort)
 	}
 	if cfg.NewsPort <= 0 || cfg.NewsPort > 65535 {
 		return Config{}, fmt.Errorf("invalid news.port %d", cfg.NewsPort)

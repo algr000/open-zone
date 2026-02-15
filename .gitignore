@@ -33,3 +33,4 @@ tools/
 tmp/
 
 build-errors.log
+deploy/

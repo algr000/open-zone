@@ -1,5 +1,9 @@
 dp8:
   port: 2300
+  # ConInfoRes advertise address (what clients should use to reach this server).
+  # Leave empty/0 for local-only defaults (127.0.0.1:<dp8.port>).
+  advertise_ip: ""
+  advertise_port: 0
 news:
   port: 2301
 autoupdate:

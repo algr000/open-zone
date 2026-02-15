@@ -45,6 +45,28 @@ func TestHostStore_ApplyHostData_AndGamesRows(t *testing.T) {
 	}
 }
 
+func TestHostStore_ObservedIPOverridesPrivateIp2(t *testing.T) {
+	// When the server observes a public IP for the host, browse rows must not expose private IPs from HostData (e.g. 172.x).
+	// Otherwise remote joiners would try to connect to the host's private IP and timeout.
+	s := NewHostStore()
+	from := uint32(0x33333333)
+	s.SetObservedRemoteIP(from, "203.0.113.1")
+	payload := `<HostData Cx="0x0"><HostData><New>` +
+		`<Item ItemId="0" GName="LAN Host" Map="Test" Ip2="172.25.96.1  10.0.0.186" Locale="1033" GameV="1.11.0.1462" NumP="1" MaxP="8" />` +
+		`</New></HostData></HostData>`
+	s.ApplyHostData(from, payload)
+	rows := s.GamesRows(1, nil)
+	if len(rows) != 1 {
+		t.Fatalf("rows=%d", len(rows))
+	}
+	if got := rows[0].Items["IpAddr"]; got != "203.0.113.1" {
+		t.Fatalf("IpAddr=%q want observed public", got)
+	}
+	if got := rows[0].Items["Ip2"]; got != "203.0.113.1" {
+		t.Fatalf("Ip2=%q want observed public (no private IP in row)", got)
+	}
+}
+
 func TestHostStore_DeleteStyleRemovesHost(t *testing.T) {
 	s := NewHostStore()
 	from := uint32(0x22222222)

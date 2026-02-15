@@ -37,6 +37,7 @@ Outbound bundle (must be sent; DP8 send flags matter at transport layer):
 Notes:
 - This is the required bundle that gets the UI past “Connecting to ZoneMatch Server...”.
 - `Port` must match the DP8 server port configured for the runtime.
+- `IpAddr`/`Port` are taken from config (`dp8.advertise_ip`, `dp8.advertise_port`) when set; otherwise the server defaults to `127.0.0.1:<dp8.port>`.
 
 ## Flow 2: Games Tab Browse (headers + page)
 
